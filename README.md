@@ -1,22 +1,45 @@
 ---
 home: true
 modules:
+  # - Banner
   - BannerBrand
+  - Features
   - Blog
   - MdContent
   - Footer
+# banner: # banner 模块的配置
+#   heroText: 午后南杂
+#   tagline: Enjoy when you can, and endure when you must.
+#   heroImage: /logo.png
+#   heroImageStyle:
+#     maxWidth: 200px
+#     margin: 0 auto 2rem
+#   bgImage: /banner.jpg
+#   bgImageStyle:
+# height: 200px
+features:
+  - title: 莫文蔚《慢慢喜欢你》
+    details: "书里总爱写到喜出望外的傍晚，骑着单车还有他和她的对谈"
+  - title: 林俊杰《那些你很冒险的梦》
+    details: 那些你很冒险的梦，我陪你去疯
+  - title: 买辣椒也用券《起风了》
+    details: 晚风吹起你鬓间的白发，抚平回忆留下的疤
+footer:
+  record: soeasyeasy.com
+  recordLink: http://www.soeasyeasy.com
+  startYear: 2025
 bannerBrand:
   bgImage: "/bg.svg"
   title: soeasyeasy
   description: 整点薯条🍟
   tagline: 这里栖息着代码世界的硬核实战——从算法调优到架构设计，从开源项目剖析到生产力工具测评；也流淌着程序员的烟火气——科技行业观察、办公日常、咖啡键盘交响曲，偶尔夹杂旅行手记与科幻书评。在二进制与三餐四季的交界处，与你分享技术人的多维生存指南。 键盘常热，茶水常满，期待在评论区与你交换思维火花 ✨
   buttons:
-    - { text: Guide, link: "/docs/guide/introduce" }
-    - {
-        text: Default Style,
-        link: "/docs/style-default-api/introduce",
-        type: "plain",
-      }
+    # - { text: 联系我, link: "2780066833@qq.com" }
+    # - {
+    #     text: Default Style,
+    #     link: "/docs/style-default-api/introduce",
+    #     type: "plain",
+    #   }
   socialLinks:
     - { icon: "LogoGithub", link: "https://github.com/soeasyeasy" }
 blog:
@@ -58,7 +81,7 @@ actionLink: /views/other/about
 
 ### 📫 怎么找到我
 
-- 我的个人博客- [soeasyeasy](https://soeasyeasy.github.io)
+- 我的个人博客- [soeasyeasy](http://www.soeasyeasy.com/)
 
 你可以问我任何问题（在合理范围内）💬。我期待着吸收知识 🧠、积累经验 🏭、合作 🤝 并一起打造出色的产品 🏭！
 

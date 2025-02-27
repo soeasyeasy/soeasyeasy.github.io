@@ -9,6 +9,7 @@ export default defineUserConfig({
   bundler: viteBundler(),
   // bundler: webpackBundler(),
   theme: recoTheme({
+    colorMode: 'auto',
     logo: "/see.gif",
     author: "Exceptions",
     authorAvatar: "/head.jpg",
@@ -20,26 +21,44 @@ export default defineUserConfig({
     series: {
       "/docs/theme-reco/": [
         {
-          text: "module one",
-          children: ["home", "theme"],
+          text: "转载",
+          children: ["home"],
         },
         {
-          text: "module two",
-          children: ["api", "plugin"],
+          text: "杂记",
+          children: [],
         },
       ],
     },
+    commentConfig: {
+      type: 'valine',
+      options: {
+        appId: '...', // your appId
+        appKey: '...', // your appKey
+        hideComments: true, // 全局隐藏评论，默认 false
+      },
+    },
     navbar: [
       { text: "首页", link: "/" },
+      { text: "博客", link: "/posts/1.html" },
       { text: "分类", link: "/categories/linux/1.html" },
       { text: "标签", link: "/tags/rizhi/1.html" },
       {
         text: "文档",
         children: [
-          { text: "vuepress-reco", link: "/docs/theme-reco/theme" },
-          { text: "vuepress-theme-reco", link: "/blogs/other/guide" },
+          { text: "转载", link: "/docs/theme-reco/home" },
+          { text: "杂记", link: "/docs/theme-reco/home" },
         ],
       },
+      { text: "时间轴", link: "/timeline.html" },
+      { text: "常用网站", link: "/friendship-link.html" }
+    ],
+    friendshipLinks: [
+      {
+        title: 'vuepress-recovuepress-recovuepress-recovuepress-reco',
+        logo: 'https://avatars.githubusercontent.com/u/54167020?s=200&v=4',
+        link: 'https://github.com/vuepress-reco'
+      }
     ],
     bulletin: {
       // body: [
