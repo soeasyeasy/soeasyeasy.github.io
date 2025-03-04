@@ -3,6 +3,7 @@ import recoTheme from "vuepress-theme-reco";
 import { viteBundler } from '@vuepress/bundler-vite'
 import { webpackBundler } from '@vuepress/bundler-webpack'
 
+
 export default defineUserConfig({
   title: "soeasyeasy",
   description: "soeasyeasy",
@@ -19,17 +20,9 @@ export default defineUserConfig({
     lastUpdatedText: "",
     // series 为原 sidebar
     series: {
-      "/docs/theme-reco/": [
-        {
-          text: "转载",
-          children: ["home"],
-        },
-        {
-          text: "杂记",
-          children: [],
-        },
-      ],
+      "/series/": ['xxljob'],
     },
+    autoSetSeries: true,
     commentConfig: {
       type: 'valine',
       options: {
@@ -43,13 +36,13 @@ export default defineUserConfig({
       { text: "博客", link: "/posts/1.html" },
       { text: "分类", link: "/categories/linux/1.html" },
       { text: "标签", link: "/tags/rizhi/1.html" },
-      {
-        text: "文档",
-        children: [
-          { text: "转载", link: "/docs/theme-reco/home" },
-          { text: "杂记", link: "/docs/theme-reco/home" },
-        ],
-      },
+      // {
+      //   text: "文档",
+      //   children: [
+      //     { text: "xxl-job合集", link: "/docs/xxljob/xxl-job代码逻辑" },
+      //     { text: "杂记", link: "/docs/theme-reco/home" }
+      //   ],
+      // },
       { text: "时间轴", link: "/timeline.html" },
       { text: "常用网站", link: "/friendship-link.html" }
     ],
