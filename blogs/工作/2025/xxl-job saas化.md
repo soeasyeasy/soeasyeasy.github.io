@@ -35,3 +35,52 @@ categories:
   - 每个租户拥有独立的调度中心和数据源。鉴于 XXL-JOB 本身支持多调度中心，可根据数据源名称触发任务并传递租户 ID。
   - 需解决的问题是如何限制租户只能看到自己的调度中心。
   - 注释掉注册循环中的 break 语句，以便原先针对单一数据源的调度中心能适应新的需求。
+
+### 采用方案
+
+最后采用最简单的单价、任务传参方式：
+
+- **建立任务时传参**
+  ![alt text](image-10.png)
+- **新建 aop**
+  在任务调用前后对租户进行处理
+  ![alt text](image-11.png)
+  ![alt text](image-12.png)
+
+```
+
+import com.alibaba.fastjson2.JSONObject;
+import com.xxl.job.core.handler.annotation.XxlJob;
+import org.apache.commons.lang3.StringUtils;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
+/**
+ * @author hc
+ */
+@Aspect
+@Component
+public class TenantAspect {
+
+    @Before("@annotation(xxlJob)")
+    public void before(JoinPoint joinPoint, XxlJob xxlJob) {
+        // 在这里获取job参数并设置租户上下文
+        String jobParam = XxlJobHelper.getJobParam();
+        if (!StringUtils.isEmpty(jobParam)) {
+            JSONObject jsonObject = JSONObject.parseObject(jobParam);
+            if (null != jsonObject && jsonObject.containsKey(Constants.DEFAULT_TENANT_ID_HEADER_NAME)) {
+                TenantContext.setCurrentTenant(new TenantProfile(jsonObject.getString(Constants.DEFAULT_TENANT_ID_HEADER_NAME)));
+            }
+        }
+    }
+
+    @After("@annotation(xxlJob)")
+    public void after(XxlJob xxlJob) {
+        // 清理租户上下文
+        TenantContext.setCurrentTenant(null);
+    }
+}
+```
