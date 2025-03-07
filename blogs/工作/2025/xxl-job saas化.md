@@ -48,39 +48,103 @@ categories:
   ![alt text](image-12.png)
 
 ```
+package com.xxl.job.core.context;
 
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.xxl.job.core.handler.annotation.XxlJob;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author hc
  */
 @Aspect
 @Component
+@Slf4j
 public class TenantAspect {
 
-    @Before("@annotation(xxlJob)")
-    public void before(JoinPoint joinPoint, XxlJob xxlJob) {
+    @Around("@annotation(xxlJob)")
+    public Object before(ProceedingJoinPoint joinPoint, XxlJob xxlJob) throws Throwable {
         // 在这里获取job参数并设置租户上下文
         String jobParam = XxlJobHelper.getJobParam();
-        if (!StringUtils.isEmpty(jobParam)) {
+        Object[] args = joinPoint.getArgs();
+        log.debug("Initializing tenant context for job: {}, params: {}", xxlJob.value(), jobParam);
+        if (StringUtils.isNotBlank(jobParam)) {
             JSONObject jsonObject = JSONObject.parseObject(jobParam);
             if (null != jsonObject && jsonObject.containsKey(Constants.DEFAULT_TENANT_ID_HEADER_NAME)) {
-                TenantContext.setCurrentTenant(new TenantProfile(jsonObject.getString(Constants.DEFAULT_TENANT_ID_HEADER_NAME)));
+                // 解析租户ID列表
+                List<String> tenantIds = parseTenantIds(jsonObject);
+                // 处理参数逻辑：当仅包含租户参数时清空参数
+                if (jsonObject.size() == 1 && args.length > 0) {
+                    args[0] = null;
+                }
+                if (!tenantIds.isEmpty()) {
+                    AtomicReference<Object> result = new AtomicReference<>();
+                    tenantIds.parallelStream().forEach(tenantId -> {
+                        try {
+                            // 设置当前租户上下文
+                            TenantContext.setCurrentTenant(new TenantProfile(tenantId));
+                            log.debug("Set tenant context: {}", tenantId);
+                            // 执行任务方法
+                            result.set(joinPoint.proceed(args));
+                        } catch (Throwable e) {
+                            throw new RuntimeException(e);
+                        } finally {
+                            // 清理租户上下文
+                            TenantContext.setCurrentTenant(null);
+                            log.debug("Cleared tenant context: {}", tenantId);
+                        }
+                    });
+                    //TODO 待确定多个租户不同的返回结果怎么解决
+                    return result;
+                }
             }
+        }
+        try {
+            return joinPoint.proceed(args);
+        } finally {
+            // 清理租户上下文
+            log.debug("Clear tenant context: {}", TenantContext.getCurrentTenant().getTenantId());
+            TenantContext.setCurrentTenant(null);
         }
     }
 
-    @After("@annotation(xxlJob)")
-    public void after(XxlJob xxlJob) {
-        // 清理租户上下文
-        TenantContext.setCurrentTenant(null);
+
+    /**
+     * 解析租户ID列表，支持JSON数组或逗号分隔字符串
+     */
+    private List<String> parseTenantIds(JSONObject jsonObject) {
+        List<String> tenantIds = new ArrayList<>();
+        Object tenantIdValue = jsonObject.get(Constants.DEFAULT_TENANT_ID_HEADER_NAME);
+        if (tenantIdValue instanceof String) {
+            // 处理逗号分隔字符串
+            String[] parts = ((String) tenantIdValue).split(",");
+            for (String part : parts) {
+                if (StringUtils.isNotBlank(part)) {
+                    tenantIds.add(part.trim());
+                }
+            }
+        } else if (tenantIdValue instanceof JSONArray array) {
+            // 处理JSON数组格式
+            for (int i = 0; i < array.size(); i++) {
+                tenantIds.add(array.getString(i));
+            }
+        } else if (tenantIdValue != null) {
+            // 处理其他类型（如单个值）
+            tenantIds.add(tenantIdValue.toString().trim());
+        }
+        return tenantIds;
     }
+
+
 }
 ```
