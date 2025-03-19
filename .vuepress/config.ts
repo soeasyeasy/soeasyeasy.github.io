@@ -3,6 +3,7 @@ import recoTheme from "vuepress-theme-reco";
 import { viteBundler } from '@vuepress/bundler-vite'
 import { webpackBundler } from '@vuepress/bundler-webpack'
 
+// .vuepress/config.js
 
 export default defineUserConfig({
   title: "soeasyeasy",
@@ -10,19 +11,24 @@ export default defineUserConfig({
   bundler: viteBundler(),
   // bundler: webpackBundler(),
   theme: recoTheme({
+    docsDir: '/docs',
     colorMode: 'auto',
     logo: "/see.gif",
     author: "Exceptions",
     authorAvatar: "/head.jpg",
     docsRepo: "https://github.com/soeasyeasy",
     docsBranch: "main",
-    docsDir: "example",
     lastUpdatedText: "",
     // series 为原 sidebar
     series: {
-      "/series/": ['xxljob'],
+      "/blogs/xxl-job/": [
+        {
+          text: 'xxl-job',
+          children: [ '/blogs/xxl-job/xxl-job代码逻辑.md','/blogs/xxl-job/xxl-job saas化 ai建议.md', '/blogs/xxl-job/xxl-job saas化.md' ]
+        }
+      ]
     },
-    autoSetSeries: true,
+    // autoSetSeries: true,
     commentConfig: {
       type: 'valine',
       options: {

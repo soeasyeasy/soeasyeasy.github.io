@@ -1,11 +1,11 @@
 ---
-title: XXL-JOB SaaS 化方案
+title: XXL-JOB SaaS化方案
 date: 2025/03/03
 tags:
   - xxl-job
   - saas
 categories:
-  - 工作
+  - xxl-job
 ---
 
 ### XXL-JOB SaaS 化方案

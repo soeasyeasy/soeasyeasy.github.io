@@ -1,11 +1,11 @@
 ---
-title: xxl-job saas化
+title: xxl-job saas化 ai建议
 date: 2025/02/27
 tags:
   - xxl-job
   - saas
 categories:
-  - 工作
+  - xxl-job
 ---
 
 多租户设计参考 https://www.cnblogs.com/cherf/p/16735230.html

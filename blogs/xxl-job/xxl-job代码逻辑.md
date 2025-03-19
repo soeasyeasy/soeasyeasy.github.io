@@ -4,12 +4,12 @@ date: 2025/03/03
 tags:
   - xxl-job
 categories:
-  - 工作
+  - xxl-job
 ---
 
 ![ XXL-JOB 版本 2.2.0 代码逻辑](xxl-job版本2.2.0业务逻辑.png)
 
-#### 调度中心
+### 调度中心
 
 - **XxlJobAdminConfig**
   - **执行器监听**
@@ -37,7 +37,7 @@ categories:
     - `XxlJobTrigger.trigger`：路由策略`ExecutorRouter`的实现
     - `XxlRpcReferenceBean.getObject()`：创建一个动态代理对象，远程调用指定的接口。调用执行器就会被 NettyHttpServerHandler 处理
 
-#### 执行器
+### 执行器
 
 - **XxlJobSpringExecutor**
   - 项目启动时候将所有带有`XxlJob`注解的方法扫描进父类`XxlJobExecutor`的`mapjobHandlerRepository`
