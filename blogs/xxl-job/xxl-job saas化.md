@@ -38,7 +38,7 @@ categories:
 
 ### 采用方案
 
-最后采用最简单的单价、任务传参方式：
+最后采用任务传参方式：
 
 - **建立任务时传参**
   ![alt text](image-10.png)
@@ -52,62 +52,83 @@ package com.xxl.job.core.context;
 
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.bewg.saas.infra.common.Constants;
+import com.bewg.saas.infra.common.TenantContext;
+import com.bewg.saas.infra.common.TenantProfile;
+import com.bewg.saas.infra.rdbms.TenantAwareDynamicRoutingDataSource;
+import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
+import com.xxl.job.core.log.XxlJobFileAppender;
+import com.xxl.job.core.log.XxlJobLogger;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 租户xxlJob切面
+ *
  * @author hc
+ * @date 2025/03/10
  */
 @Aspect
 @Component
 @Slf4j
 public class TenantAspect {
 
+
+    public static final ThreadFactory CUSTOM_POOL = new CustomizableThreadFactory("tenant-job-");
+    private final ThreadPoolExecutor tenantJobExecutor = new ThreadPoolExecutor(20, 50, 10L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(50), CUSTOM_POOL, (r, executor) -> {
+        log.debug("队列满了，而且线程数量达到了最大数量");
+        try {
+            executor.getQueue().put(r);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    });
+    @Resource
+    private TenantAwareDynamicRoutingDataSource tenantAwareDynamicRoutingDataSource;
+
+    /**
+     * 环绕执行
+     *
+     * @param joinPoint 加入点
+     * @param xxlJob    xxl 注解
+     * @return {@link Object }
+     * @throws Throwable 异常
+     */
     @Around("@annotation(xxlJob)")
-    public Object before(ProceedingJoinPoint joinPoint, XxlJob xxlJob) throws Throwable {
+    public Object aroundExecute(ProceedingJoinPoint joinPoint, XxlJob xxlJob) throws Throwable {
         // 在这里获取job参数并设置租户上下文
         String jobParam = XxlJobHelper.getJobParam();
         Object[] args = joinPoint.getArgs();
         log.debug("Initializing tenant context for job: {}, params: {}", xxlJob.value(), jobParam);
-        if (StringUtils.isNotBlank(jobParam)) {
-            JSONObject jsonObject = JSONObject.parseObject(jobParam);
-            if (null != jsonObject && jsonObject.containsKey(Constants.DEFAULT_TENANT_ID_HEADER_NAME)) {
-                // 解析租户ID列表
-                List<String> tenantIds = parseTenantIds(jsonObject);
-                // 处理参数逻辑：当仅包含租户参数时清空参数
-                if (jsonObject.size() == 1 && args.length > 0) {
-                    args[0] = null;
-                }
-                if (!tenantIds.isEmpty()) {
-                    AtomicReference<Object> result = new AtomicReference<>();
-                    tenantIds.parallelStream().forEach(tenantId -> {
-                        try {
-                            // 设置当前租户上下文
-                            TenantContext.setCurrentTenant(new TenantProfile(tenantId));
-                            log.debug("Set tenant context: {}", tenantId);
-                            // 执行任务方法
-                            result.set(joinPoint.proceed(args));
-                        } catch (Throwable e) {
-                            throw new RuntimeException(e);
-                        } finally {
-                            // 清理租户上下文
-                            TenantContext.setCurrentTenant(null);
-                            log.debug("Cleared tenant context: {}", tenantId);
-                        }
-                    });
-                    //TODO 待确定多个租户不同的返回结果怎么解决
-                    return result;
-                }
+        List<String> tenantIds = getExecutorTenants(jobParam, args);
+        if (!tenantIds.isEmpty()) {
+            ConcurrentHashMap<String, ReturnT<?>> tenantResultMap = new ConcurrentHashMap<>(tenantIds.size());
+            CompletableFuture[] completableFutures = new CompletableFuture[tenantIds.size()];
+            String logFileName = XxlJobFileAppender.contextHolder.get();
+            for (int i = 0; i < tenantIds.size(); i++) {
+                String tenantId = tenantIds.get(i);
+                completableFutures[i] = CompletableFuture.runAsync(() -> {
+                    XxlJobFileAppender.contextHolder.set(logFileName);
+                    executeForTenants(joinPoint, tenantId, args, tenantResultMap);
+                }, tenantJobExecutor);
             }
+            CompletableFuture.allOf(completableFutures).join();
+            return handleErrTenantId(tenantResultMap);
         }
         try {
             return joinPoint.proceed(args);
@@ -118,9 +139,122 @@ public class TenantAspect {
         }
     }
 
+    /**
+     * 处理错误租户
+     *
+     * @param tenantResultMap 租户结果map
+     */
+    private static ReturnT<?> handleErrTenantId(ConcurrentHashMap<String, ReturnT<?>> tenantResultMap) {
+        ReturnT<?> result = ReturnT.SUCCESS;
+        //有一个租户任务失败 当前任务就标记失败
+        if (tenantResultMap.containsValue(ReturnT.FAIL)) {
+            //获取错误的租户id 以逗号隔开
+            AtomicBoolean firstError = new AtomicBoolean(true);
+            StringBuilder errorMsgBuilder = new StringBuilder();
+            tenantResultMap.forEach((tenantId, returnT) -> {
+                if (returnT.getCode() == ReturnT.FAIL_CODE) {
+                    if (!firstError.get()) {
+                        errorMsgBuilder.append(",");
+                    } else {
+                        firstError.set(false);
+                    }
+                    errorMsgBuilder.append(tenantId);
+                }
+            });
+            XxlJobContext.getXxlJobContext().setErrTenantIds(errorMsgBuilder.toString());
+            result = ReturnT.FAIL;
+        }
+        return result;
+    }
+
+    /**
+     * 获取执行程序租户
+     *
+     * @param jobParam job 参数
+     * @param args     参数
+     * @return {@link List }<{@link String }>
+     */
+    private List<String> getExecutorTenants(String jobParam, Object[] args) {
+        List<String> tenantIds;
+        if (StringUtils.isBlank(jobParam)) {
+            //1参数为空
+            return getAllTenantIds();
+        }
+        try {
+            JSONObject jsonObject = JSONObject.parseObject(jobParam);
+            if (null != jsonObject && jsonObject.containsKey(Constants.DEFAULT_TENANT_ID_HEADER_NAME)) {
+                // 2参数是json 且有租户字段 解析租户ID列表
+                // 处理参数逻辑：当仅包含租户参数时清空参数 因为旧的任务里根据是否有业务参数进不同逻辑  现在有租户参数无业务参数 也会进业务参数逻辑
+                if (jsonObject.size() == 1 && args.length > 0) {
+                    args[0] = null;
+                }
+                return parseTenantIds(jsonObject);
+            } else {
+                //3参数是json 但是无租户字段
+                tenantIds = getAllTenantIds();
+            }
+        } catch (Exception e) {
+            //4参数不是json
+            tenantIds = getAllTenantIds();
+        }
+
+        return tenantIds;
+    }
+
+    /**
+     * 获取所有租户 ID
+     *
+     * @return {@link List }<{@link String }>
+     */
+    private List<String> getAllTenantIds() {
+        List<String> tenantIds = tenantAwareDynamicRoutingDataSource.getDataSources().keySet().stream().toList();
+        XxlJobLogger.log("<span style='color:green'>----------- 将执行所有租户任务" + tenantIds + " -----------</span>");
+        return tenantIds;
+    }
+
+
+    /**
+     * 租户执行
+     *
+     * @param joinPoint       切入点
+     * @param tenantId        租户 ID
+     * @param args            任务参数
+     * @param tenantResultMap 所有租户结果map
+     */
+    private static void executeForTenants(ProceedingJoinPoint joinPoint, String tenantId, Object[] args, ConcurrentHashMap<String, ReturnT<?>> tenantResultMap) {
+        ReturnT<?> proceedResult = ReturnT.SUCCESS;
+        String errorMsg = "";
+        try {
+            // 设置当前租户上下文
+            XxlJobLogger.log("----------- 设置租户上下文: {} -----------", tenantId);
+            TenantContext.setCurrentTenant(new TenantProfile(tenantId));
+            // 执行任务方法
+            proceedResult = (ReturnT<?>) joinPoint.proceed(args);
+            tenantResultMap.put(tenantId, proceedResult);
+        } catch (Throwable e) {
+            tenantResultMap.put(tenantId, ReturnT.FAIL);
+            proceedResult = ReturnT.FAIL;
+
+            StringWriter stringWriter = new StringWriter();
+            e.printStackTrace(new PrintWriter(stringWriter));
+            errorMsg = stringWriter.toString();
+        } finally {
+            // 清理租户上下文
+            TenantContext.setCurrentTenant(null);
+            if (proceedResult.equals(ReturnT.SUCCESS)) {
+                XxlJobLogger.log("<span style='color:green'>----------- 清理租户上下文:{},该租户执行成功:{} -----------</span>", tenantId, proceedResult);
+            } else if (proceedResult.equals(ReturnT.FAIL)) {
+                XxlJobLogger.log("<span style='color:red'>----------- 清理租户上下文:" + tenantId + ",该租户执行失败:" + errorMsg + " -----------</span>");
+            }
+        }
+    }
+
 
     /**
      * 解析租户ID列表，支持JSON数组或逗号分隔字符串
+     *
+     * @param jsonObject JSON 对象
+     * @return {@link List }<{@link String }>
      */
     private List<String> parseTenantIds(JSONObject jsonObject) {
         List<String> tenantIds = new ArrayList<>();
@@ -138,13 +272,13 @@ public class TenantAspect {
             for (int i = 0; i < array.size(); i++) {
                 tenantIds.add(array.getString(i));
             }
-        } else if (tenantIdValue != null) {
-            // 处理其他类型（如单个值）
-            tenantIds.add(tenantIdValue.toString().trim());
+        }
+        if (tenantIds.isEmpty()) {
+            tenantIds = getAllTenantIds();
+        } else {
+            XxlJobLogger.log("<span style='color:green'>----------- 将执行租户任务" + tenantIds + " -----------</span>");
         }
         return tenantIds;
     }
-
-
 }
 ```

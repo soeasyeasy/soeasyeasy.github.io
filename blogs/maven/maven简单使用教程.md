@@ -1,17 +1,17 @@
 ---
-title: linux下日志查询
-date: 2025/02/26
+title: Maven 简单使用教程
+date: 2025/03/26
 tags:
   - maven
 categories:
   - maven
 ---
 
-以下是一份详细的 Maven 使用教程，涵盖基础概念、安装配置、常用操作及实战示例：
+以下是一份简单的 Maven 使用教程，涵盖基础概念、安装配置、常用操作及实战示例：
 
 ---
 
-# Maven 详细使用教程
+# Maven 简单使用教程
 
 ## 目录
 
