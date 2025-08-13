@@ -1,5 +1,5 @@
 ---
-title: blogs/工作/elk/elk window下docker部署.md
+title: elk window下docker部署
 date: 2025/08/31
 tags:
   - elk
@@ -172,7 +172,7 @@ http://localhost:5601
 
 ## ✅ 4. 常用功能入口
 
-| 功能                    | 路径                                  |
+| 功能                    | 路径                                  |                              |
 | ----------------------- | ------------------------------------- | ---------------------------- |
 | **Dev Tools（控制台）** | `http://localhost:5601/app/dev_tools` | 用于执行 REST API 查询       |
 | **Discover**            | 主页                                  | 查看文档、创建 Index Pattern |
@@ -229,8 +229,6 @@ docker rm kibana
 ```
 
 ---
-
-您提出了一个非常关键的问题！
 
 > **在 Windows 上使用 Docker Desktop 启动了 Elasticsearch 和 Kibana，Kibana 能否通过 `http://localhost:9200` 连接 Elasticsearch？**
 
