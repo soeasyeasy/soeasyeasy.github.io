@@ -21,12 +21,19 @@ export default defineUserConfig({
     lastUpdatedText: "",
     // series 为原 sidebar
     series: {
-      "/blogs/xxl-job/": [
+      "/blogs/工作/xxl-job/": [
         {
           text: 'xxl-job',
-          children: [ '/blogs/xxl-job/xxl-job代码逻辑.md','/blogs/xxl-job/xxl-job saas化 ai建议.md', '/blogs/xxl-job/xxl-job saas化.md' ]
+          children: [ '/工作/xxl-job/xxl-job代码逻辑.md','/工作/xxl-job/xxl-job saas化 ai建议.md', '/工作/xxl-job/xxl-job saas化.md' ]
         }
-      ]
+      ],
+      "/blogs/工作/elk/": [
+        {
+          text: 'xxl-job',
+          children: [ '/工作/elk/完整elk脚本.md','/工作/elk/efk脚本.md', '/工作/elk/elk window下docker部署.md' ]
+        }
+      ],
+      
     },
     // autoSetSeries: true,
     commentConfig: {
