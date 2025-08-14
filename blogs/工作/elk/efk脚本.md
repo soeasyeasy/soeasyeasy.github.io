@@ -1,8 +1,8 @@
 ---
-title: 完整elk脚本
+title: 完整efk脚本
 date: 2025/08/31
 tags:
-  - elk
+  - efk
 categories:
   - elk
 ---
