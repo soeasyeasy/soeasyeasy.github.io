@@ -29,7 +29,7 @@ export default defineUserConfig({
       ],
       "/blogs/工作/elk/": [
         {
-          text: 'xxl-job',
+          text: 'elk',
           children: [ '/工作/elk/完整elk脚本.md','/工作/elk/efk脚本.md', '/工作/elk/elk window下docker部署.md' ]
         }
       ],
